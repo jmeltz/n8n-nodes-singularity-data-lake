@@ -5,6 +5,7 @@ import {
 	INodeTypeDescription,
 	IHttpRequestMethods,
 	IRequestOptions,
+	IDataObject,
 	NodeOperationError,
 } from 'n8n-workflow';
 
@@ -851,23 +852,23 @@ export class SentinelOneDataLake implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				let responseData;
+				let responseData: IDataObject | IDataObject[] | undefined;
 
 				if (resource === 'query') {
 					if (operation === 'search') {
-						responseData = await executeSearch.call(this, i, consoleUrl, s1Scope);
+						responseData = await executeSearch.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					} else if (operation === 'facet') {
-						responseData = await executeFacetQuery.call(this, i, consoleUrl, s1Scope);
+						responseData = await executeFacetQuery.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					} else if (operation === 'timeseries') {
-						responseData = await executeTimeseriesQuery.call(this, i, consoleUrl, s1Scope);
+						responseData = await executeTimeseriesQuery.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					} else if (operation === 'powerQuery') {
-						responseData = await executePowerQuery.call(this, i, consoleUrl, s1Scope);
+						responseData = await executePowerQuery.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					}
 				} else if (resource === 'event') {
 					if (operation === 'uploadLogs') {
-						responseData = await executeUploadLogs.call(this, i, consoleUrl, s1Scope);
+						responseData = await executeUploadLogs.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					} else if (operation === 'addEvents') {
-						responseData = await executeAddEvents.call(this, i, consoleUrl, s1Scope);
+						responseData = await executeAddEvents.call(this, i, consoleUrl, s1Scope) as IDataObject | IDataObject[];
 					}
 				}
 
