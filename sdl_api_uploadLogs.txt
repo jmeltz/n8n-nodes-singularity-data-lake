@@ -1,0 +1,92 @@
+SDL API - uploadLogs
+
+A simple API to upload unstructured, plain-text logs. You cannot ingest more than 10 GB/day with this endpoint.
+Frequent use cases:
+
+    Lightweight integrations with unstructured events.
+
+    Batches of data from a stateless environment, such as Amazon Lambda.
+
+    Infrequent, unstructured events, such as a notification or webhook.
+
+    Whole files (txt, json, tar.gz).
+
+For more complex use cases, see the addEvents API, and the Collector, which uploads logs written to file. If you want to bypass the Agent and integrate directly through our API, see SDL API Integration  before continuing.
+
+The request body must be 6 MB or less. We reject longer requests.
+URL
+
+https://yourConsole.net/api/uploadLogs
+
+Replace https://yourConsole.net with the URL for the Singularity™ Data Lake Console. For example, https://xdr.us1.sentinelone.net.
+
+See Services and Ports for Management for the Singularity™ Data Lake URL for your Datacenter.
+Example
+
+Consult the URL above for your specific address, and use POST:
+
+curl -X POST https://yourConsole.net/api/uploadLogs \
+    -H "Authorization: Bearer {token}"  \
+    -H "Content-Type: text/plain" \
+    -H "parser: my-parser-name" \
+    -H "server-host: my-server-name" \
+    -H "logfile: my-logfile-name" \
+    -H "Nonce: my-nonce-value" \
+    -d 'Log 1: Hello, World!
+    Log 2: Hello Again' 
+
+To upload a file:
+
+curl -X POST https://yourConsole.net/api/uploadLogs \
+    -H "Authorization: Bearer {token}" \
+    -H "Content-Type: text/plain" \
+    -H "parser: my-parser-name" \
+    -H "server-host: my-server-name" \
+    -H "logfile: my-logfile-name" \
+    -H "Nonce: my-nonce-value2" \
+    -d @/path/to/file.json
+
+You can also pass parameters in the URL. Remember to encode double quotes as %22, single quotes as %27, and spaces as %20:
+
+curl -X POST 'https://yourConsole.net/api/uploadLogs?token=XXX&parser=my-parser-name&server-host=my-server-name&logfile=my-logfile-name&Nonce=my-nonce-value' \
+    -H 'Content-Type: text/plain' \
+    -d 'Log 1: Hello, World!
+    Log 2: Hello Again'
+
+Format
+
+Separate each log message in the request body with line breaks (\n, \r, or \r\n). A line break after the last message is optional. If you have multiple lines to upload, test first because some applications remove line breaks. For curl, you can try the --data-binary flag.
+
+token: A Log Write Access SDL API key. You can send the key in the URL, but we recommend the header, in the format 'Authorization': 'Bearer {token}'.
+
+SentinelOne Console user API tokens also support the Singularity™ Data Lake SDL API. Because these tokens have an expiration date, we recommend a Log Write Access key for an integration. See SDL API Keys for more.
+
+Optional parameters can be set as HTTP request headers, for example -H "parser: my-parser-name". They can also be sent in the URL, for example &parser=my-parser-name:
+
+    parser: Optional (defaults to "uploadLogs"). The parser field creates a configuration file where you can set rules to parse the log text into fields. You can also ask us to create the rules for you.
+
+    server-{value}: Optional. Set server-specific fields with a server- prefix, and a suffix value. For example, set server-host and server-region to create host and region fields. Useful for querying. Note that host is a standard HTTP header; you must set -H "server-host: my-server-name" to prevent confusion.
+
+    logfile: Optional (defaults to "uploadLogs"). Sets the logfile. Usually, this is the path to the logfile uploaded by the Collector. Useful for querying.
+
+    Nonce: Optional. A nonce can be any value. When set, you cannot upload the same log(s) again. Subsequent requests with the same nonce are ignored. If you implement logic to retry failed requests, generate a unique nonce value for each request, and use the same value for each retry.
+
+Responses
+
+If the request is a success:
+
+{"status":"success"}         
+
+If the request fails:
+
+{
+  "message": "...information goes here...",
+  "status": "error/client/badParam"
+}
+
+If the request has a duplicate nonce:
+
+{
+  "message":"ignoring request, due to duplicate nonce or Logplex-Frame-Id",
+  "status":"success"
+}      

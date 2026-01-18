@@ -1,0 +1,74 @@
+SDL API Keys
+Console API Tokens for the SDL API
+
+Supported from Platform version Z SP5.
+
+SentinelOne Console user API tokens now support the Singularity™ Data Lake SDL API. Console tokens are not scope-specific, and they support Role-Based Access Control (RBAC), multi-Site Accounts, and multi-Account users. One SentinelOne API token can be used as the SDL API key to access all scopes available to the user.
+Important
+
+    SentinelOne Console user API tokens are not supported for the SDL API - uploadLogs SDL API, or the HTTP Event Collector (HEC) integration .
+
+    Console User API tokens have an expiration date. For ingestion, such as the SDL API - addEvents SDL API, we recommend that you use an SDL API Log Write Access key.
+
+    Legacy Console user API tokens generated before Platform version Z SP5 cannot be used for the Singularity™ Data Lake SDL API. You must generate a new token.
+
+To generate a Console user API token, see Generating API tokens.
+
+To understand the permissions required to generate a Console user API token, see Control API token generation.
+
+To use the API token, add it where an SDL API key is required. The SDL API will execute at the scope and permission level for the user. For example, if a user has a Global, Account, or Site scope, the SDL API executes for that scope. If the user does not have the necessary RBAC permissions for an API request, the request fails.
+
+A user with access to multiple Accounts or multiple Sites must set the S1-Scope HTTP header to execute a request for a specific scope. If this header is not given, the request does not return data. For a Site scope, the header has the form:
+
+S1-Scope: <account scope ID>:<site scope ID>
+
+For an Account scope, the header has the form:
+
+S1-Scope: <account scope ID> 
+
+You can find the Site and Account ID in the Accounts or Sites page in Policies and settings. See Managing Accounts for more details.
+SDL API Keys
+
+SDL API keys are scope-specific, and only support read or write permissions for logs or configurations. You must generate the key for a specific scope.
+
+Select a scope from the Scope selector.
+The Manage API Keys page for the XDR API
+
+1. Open the Manage API Keys page.
+
+In the sidebar, click Policies and settings > AI SIEM > API Keys.
+
+There are two categories of keys:
+
+    Log Access Keys: Log Read and Log Write keys to read and write logs.
+
+    Configuration Access Keys. Log Read and Log Write keys to read or write configuration files.
+
+    Key
+    	
+
+    Available APIs
+
+    Log Read Access
+    	
+
+    Methods to read logs - query, numericQuery, facetQuery, timeseriesQuery, and powerQuery
+
+    Log Write Access
+    	
+
+    Methods to write logs - uploadLogs and addEvents.
+
+    Configuration Read Access
+    	
+
+    All methods available to Log Read Access, plus methods to view configuration files - getFile and listFiles.
+
+    Configuration Write Access
+    	
+
+    All methods available to Log Read Access and Configuration Read Access, plus methods to write configuration files - putFile.
+
+2. Select New Key Add Key to add a key. The default name is the current date, in the format "DD MM YYYY". To change the name hover on the key, and click the edit icon. You can enter a name of 20 or fewer characters. Keys are scope-sensitive. For example, if you create a Write key in a site scope and use it as the key to ingest data with the addEvents SDL API, you can only see the data in that site scope.
+
+3. Hover on a key to Copy, Edit, Rename and Delete.

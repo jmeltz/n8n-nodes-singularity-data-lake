@@ -1,0 +1,98 @@
+SDL API - facetQuery
+
+Gets the most frequent values of a field in events matching your query. For example, the most frequent URLs accessed on your site, or the most frequent HTTP response codes.
+
+URL
+
+https://yourConsole.net/api/facetQuery
+
+Replace https://yourConsole.net with the URL for the Singularity™ Data Lake Console. For example, https://xdr.us1.sentinelone.net.
+
+See Services and Ports for Management for the Singularity™ Data Lake URL for your Datacenter.
+
+Examples
+
+Use POST for a JSON request.
+
+curl -X POST https://yourConsole.net/api/facetQuery \
+    -H "Authorization: Bearer {token}"  \
+    -H "Content-Type: application/json" \
+    -d '{
+      "queryType": "facet",
+      "filter": "serverHost contains \"frontend\""
+      "startTime": "24h",
+      "field": "ip"
+    }'
+
+Use GET to pass arguments in the URL. Remember to encode double quotes as %22, single quotes as %27, and spaces as %20:
+
+curl -X GET 'https://yourConsole.net/api/facetQuery?queryType=facet&field=ip&startTime=24h&token=XXX'
+
+You can also use the command-line tool. Set the --verbose and --output=json-pretty flags to output the raw JSON request and response objects. You must set a filter for a numeric query with the CLI. The example omits the --token flag; see the installation instructions to store this as an environment variable.
+
+scalyr facet-query 'dataset="accessLog"' uriPath --start 1h --verbose
+
+Format
+
+{
+  "token":     "xxx",     // A "Log Read Access" key. We recommend you send the key in the header.
+  "queryType": "facet",   // Set to "facet".
+  "filter":    "...",     // Optional. A search expression.
+  "field":     "...",     // Required. The field to get the most frequent values of.  
+  "maxCount":  nnn,       // Optional (defaults to 100). The max number of field values to get.
+  "startTime": "...",     // Required.
+  "endTime":   "...",     // Optional (defaults to the present).
+  "priority":  "..."      // Optional (defaults to "low").
+}
+
+token
+
+A Log Read Access SDL API key. We recommend you send the key in the header, in the format Authorization: Bearer {token}.
+
+SentinelOne Console user API tokens also support the Singularity™ Data Lake SDL API. See SDL API Keys for more.
+queryType
+
+Set to facet.
+filter
+
+Optional (defaults to ""). A search expression to get matching events, in the same syntax as the UI. For example, "status >= 400 status < 500" will match events with a "client error" HTTP status code. Note: for JSON requests, single quotes are invalid, and you must \" escape double quotes in strings.
+
+Ignore this property to match all events, for example if you want all events from a time period.
+field
+
+The field to get the most frequent values of.
+maxCount
+
+Optional (defaults to 100). Set from 1 to 1000. The maximum number of field values to get.
+startTime and endTime
+
+The time range of your query. You must set a startTime. endTime defaults to the present if not set. Uses the same time syntax as the UI. You can also set a timestamp in seconds, milliseconds, or nanoseconds since 1/1/1970.
+
+startTime is inclusive: endTime is exclusive.
+priority
+
+Optional (defaults to low). The execution priority for the query. Set to "low" when a delay of approximately a second is acceptable, and "high" if not. Low-priority queries have more generous rate limits.
+Responses
+
+An error is a status other than success in the response object. See SDL API Format section for more information.
+
+Standard response:
+
+{
+  "status": "success",
+  "values": [
+    {"value": "aaa", "count": 100},
+    {"value": "bbb", "count": 50},
+    // More values
+  ],
+  "matchCount": 1000,
+  "cpuUsage": 12
+}
+
+values: An array of objects. Each object has a field value, and a count. The count is the number of times the field value occurs in events matching the query. The number of objects in values equals the total number of unique values in the field, or maxCount, whichever is smaller.
+
+Values are sorted by count. If a very large number of events match the query, values are from a random subsample of matching events. The subsample has at least 500,000 events.
+
+matchCount: The number of events that match the filter.
+
+cpuUsage: CPU milliseconds spent on your query. We use this to rate limit requests.

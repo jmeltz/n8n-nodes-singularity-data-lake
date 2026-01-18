@@ -1,0 +1,40 @@
+SDL API Overview
+
+You can use the SDL API to send and retrieve log data, archive events, and manage configuration files, users, and groups.
+
+You must generate a key to access the SDL API. There are four types. The instructions for each method show which key is required:
+
+    Log Read Access,
+
+    Log Write Access
+
+    Configuration Read Access
+
+    Configuration Write Access 
+
+SentinelOne Console user API tokens now support the Singularity™ Data Lake SDL API. Console tokens are not scope-specific, and they support Role-Based Access Control (RBAC), multi-Site Accounts, and multi-Account users. One SentinelOne API token can be used as the SDL API key to access all scopes available to the user.
+
+Because these keys have an expiration date, we recommend a SDL API Log Write Access key for ingestion, for example with addEvents.
+
+See SDL API Keys for more.
+Available methods:
+
+    uploadLogs: a lightweight endpoint to insert unstructured events.
+
+    addEvents: insert structured or unstructured events.
+
+    query: get events.
+
+    numericQuery: get numeric / graph data (near-deprecated).
+
+    timeseriesQuery: get numeric / graph data, for single or repetitive queries.
+
+    facetQuery: get the most frequent values for a field.
+
+    powerQuery: execute a PowerQuery.
+
+    getFile: get a configuration file.
+
+    putFile: create, update, or delete a configuration file.
+
+    listFiles: get all configuration files.

@@ -1,0 +1,129 @@
+SDL API - powerQuery
+
+Run a PowerQuery, where you can pipe one or many search expressions  into a set of commands to transform, manipulate, group, and summarize your data. This query option in SDL API is often referred to as the powerQuery API.
+
+URL
+
+https://yourConsole.net/api/powerQuery
+
+Replace https://yourConsole.net with the URL for the Singularity™ Data Lake Console. For example, https://xdr.us1.sentinelone.net.
+
+See Services and Ports for Management for the Singularity™ Data Lake URL for your Datacenter.
+
+Examples
+
+Use POST for a JSON request.
+
+curl -X POST https://yourConsole.net/api/powerQuery \
+    -H "Authorization: Bearer {token}"  \
+    -H "Content-Type: application/json" \
+    -d '{
+      "query":      "status >= 100 status <=599 | group count() by status",  
+      "startTime":  "24h",  
+
+    }'
+
+Use GET to pass arguments in the URL. Remember to encode double quotes as %22, single quotes as %27, and spaces as %20:
+
+curl -X GET 'https://yourConsole.net/api/powerQuery?query=%22status%20%62%61%20100%20status%20%60%61599%20%124%20group%20count%40%41%20by%20status%22&token=XXX'
+
+You can also use the command-line tool. Set the --verbose and --output=json-pretty flags to output the raw JSON request and response objects. You must set the --start time with the CLI. The example omits the --token flag; see the installation instructions to store this as an environment variable.
+
+scalyr power-query "status >= 100 status <=599 | group count() by status" --start 24h --verbose --output=json-pretty
+
+Format
+
+{
+  "token":      "xxx",  // A "Log Read Access" key. We recommend you send the key in the header.
+  "query":      "...",  // The PowerQuery to execute.
+  "startTime":  "...",  // Optional. Omit startTime and endTime to search the past 24 hours.
+  "endTime":    "...",  // Optional.
+  "priority":   "...",  // Optional (defaults to "low").
+  "teamEmails": ["...", "..."]  // Optional.
+}
+
+token
+
+A Log Read Access SDL API key. We recommend you send the key in the header, in the format Authorization: Bearer {token}.
+
+SentinelOne Console user API tokens also support the Singularity™ Data Lake SDL API. See SDL API Keys for more.
+query
+
+The query, in PowerQuery syntax. There is a 10,000 character limit for query.
+
+For JSON requests, single quotes are invalid, and you must \" escape double quotes in strings. For example, "serverHost contains \"frontend\" | ...".
+
+From Platform version S-24.2.6, datasource extends the powerQuery API to access and return tabular data from sources outside Singularity™ Data Lake.
+
+The metering option for datasource can access the following usage metering data tables. For details and examples, see Usage Metering reports in the PowerQuery API.
+
+    tenants: This table has a list of tenants that are available for your permissions.
+
+    reports: This table has a list of reports that have data and that are available for your permissions and, for MSSPs, the tenants you can access.
+
+    report_name: Each report has a table with the raw usage metering data. To see the available values for report_name, run a PowerQuery with the metering datasource and the reports option.
+
+    In this example, the HTTP POST call executes a query to get a list of reports that have data in the last seven days.
+
+    POST {{url}}/sdl/api/powerQuery
+    Authorization: Bearer {{token}}
+    Content-Type: application/json
+    {
+      "query": "| datasource \"metering\" from \"reports\"",
+      "startTime": "7d"
+    }
+
+startTime and endTime
+
+Optional (defaults to 24 hours when both properties are not set). The time range of your query. Uses the same time syntax as the UI. You can also set a timestamp in seconds, milliseconds, or nanoseconds since 1/1/1970.
+
+Defaults to the past 24 hours when both properties are not set. If startTime is set but endTime is not, the query is from startTime to 24 hours later, or the present, whichever is first. If endTime is set but not startTime, the query starts 24 hours before endTime.
+
+startTime is inclusive: endTime is exclusive.
+priority
+
+Optional (defaults to low). The execution priority for the query. Set to "low" when a delay of approximately a second is acceptable, and "high" if not. Low-priority queries have more generous rate limits.
+teamEmails
+
+Optional (defaults to []). An array of account emails to query, enabling Cross Team Search.
+tenant
+
+Optional (defaults to false). When set to true, this parameter queries all accounts accessible to the user. For a global scope, that includes all accounts on the Console. For an account-level scope, only that account is included. The tenant and accountIds parameters are only supported for console API tokens.
+accountIds
+
+Optional (defaults to []). An array of Console account IDs to query, enabling Cross Team Search. Provide this parameter only if tenant is set to false and teamEmails is not present. The tenant and accountIds parameters are only supported for console API tokens.
+Responses
+
+An error is a status other than success in the response object. See SDL API Format section for more information.
+
+Standard response:
+
+{
+  "status": "success",
+  "matchingEvents": nnn,
+  "omittedEvents": nnn,
+  "columns": [
+    {"name": "columnName1"},
+    {"name": "columnName2"},
+    ...more columns...
+  ],
+  "values": [
+    [ valueForColumn1, valueForColumn2, ... ], // row 1
+    [ valueForColumn1, valueForColumn2, ... ], // row 2
+    ...more rows...
+  ]
+}
+
+matchingEvents: Number of events that match the query's initial filter, which is a search expression. The number of events used by the PowerQuery.
+
+omittedEvents: Number of events omitted from the final result, due to memory limits.
+
+columns: A PowerQuery outputs a table; columns is an array of the column names.
+
+values: A PowerQuery outputs a table; values is an array of arrays, holding the values of each cell in the table. The outer array has one entry per row, and the inner array has one entry per column. Values in each cell can be null, true, false, a number, a string, or a special value:
+
+    {"special": "+infinity"}
+
+    {"special": "-infinity"}
+
+    {"special": "NaN"}

@@ -1,0 +1,138 @@
+SDL API - timeseriesQuery
+
+This method gets numeric data and supports multiple queries.
+
+For queries you will repeatedly execute, you can create a timeseries of precomputed results. You can also set a query to only execute against a timeseries, or against the event database when a timeseries does not exist, or does not cover the full time span of your query.
+
+Notes: Rate limiting may occur if you issue more than 100 novel queries (queries without a precomputed timeseries) per hour. Use of * contains and * matches syntax in a timeseriesQuery to search all fields for a value is not optimized for performance. A timeseriesQuery with "createSummaries": false and "onlyUseSummaries": false is effectively a numericQuery.
+
+URL
+
+https://yourConsole.net/api/timeseriesQuery
+
+Replace https://yourConsole.net with the URL for the Singularity™ Data Lake Console. For example, https://xdr.us1.sentinelone.net.
+
+See Services and Ports for Management for the Singularity™ Data Lake URL for your Datacenter.
+
+Examples
+
+Use POST for a JSON request.
+
+curl -X POST https://yourConsole.net/api/timeseriesQuery \
+    -H "Authorization: Bearer {token}"  \
+    -H "Content-Type: application/json" \
+    -d '{
+      "queries": [
+        {
+          "filter":    "serverHost contains \"frontend\"",
+          "startTime": "1h",
+          "function":  "count",
+          "buckets":   60
+        },{
+          "filter":    "serverHost contains \"frontend\"",
+          "startTime": "1h",
+          "function":  "rate",
+          "buckets":   60
+        },
+      ]
+    }'
+
+Use GET to pass arguments in the URL. Send only one query per request. Remember to encode double quotes as %22, single quotes as %27, and spaces as %20:
+
+curl -X GET 'https://yourConsole.net/api/timeseriesQuery?filter=%22%22&startTime=1h&buckets=60&token=XXX'
+
+You can also use the command-line tool. Set the --verbose and --output=json-pretty flags to output the raw JSON request and response objects. The command-line does not support multiple queries. The example omits the --token flag; see the installation instructions to store this as an environment variable.
+
+scalyr timeseries-query "" --start 1h --buckets 60 --verbose --output=json-pretty
+
+Format
+
+{
+  "token":                 "xxx",   // A "Log Read Access" key. We recommend you send the key in the header.
+    {
+      "filter":            "...",   // Required. A search expression.  
+      "function":          "...",   // Optional. Defaults to "rate" (matching events per second)
+      "startTime":         "...",   // Required.
+      "endTime":           "...",   // Optional (defaults to the present time).
+      "buckets":           nnn,     // Optional (defaults to 1).
+      "createSummaries":   true,    // Optional (defaults to true).
+      "onlyUseSummaries":  false,   // Optional (defaults to false).
+      "priority":          "..."    // Optional (defaults to "low").
+    },
+    ...
+  ]
+}
+
+token
+
+A Log Read Access SDL API key. We recommend you send the key in the header, in the format Authorization: Bearer {token}.
+
+SentinelOne Console user API tokens also support the Singularity™ Data Lake SDL API. See SDL API Keys for more.
+queries
+
+An array of queries. Each query can have the properties:
+filter
+
+A search expression to get matching events, in the same syntax as the UI. For example, "status >= 400 status < 500" will match events with a "client error" HTTP status code. Note: for JSON requests, single quotes are invalid, and you must \" escape double quotes in strings.
+
+To match all events, set to "", for example if you want all events from a time range.
+teamEmails
+
+Optional (defaults to []). An array of account emails to query, enabling Cross Team Search.
+tenant
+
+Optional (defaults to false). When set to true, this parameter queries all accounts accessible to the user. For a global scope, that includes all accounts on the Console. For an account-level scope, only that account is included. The tenant and accountIds parameters are only supported for console API tokens.
+accountIds
+
+Optional (defaults to []). An array of Console account IDs to query, enabling Cross Team Search. Provide this parameter only if tenant is set to false and teamEmails is not present. The tenant and accountIds parameters are only supported for console API tokens.
+function
+
+Optional (defaults to rate). An aggregation function to apply to events in your buckets. Set one of the Graph Functions  other than fraction(expr). For example, if responseTime is a numeric field in your events, you can calculate mean(responseTime) for each bucket. You can also set to rate (matching events per second), or count to count the number of events in each bucket.
+startTime and endTime
+
+The time range of your query. You must set a startTime. endTime defaults to the present if not set. Uses the same time syntax as the UI. You can also set a timestamp in seconds, milliseconds, or nanoseconds since 1/1/1970.
+
+startTime is inclusive: endTime is exclusive.
+buckets
+
+Optional (defaults to 1). Set from 1 to 5000. We divide the time range of your query into a number of buckets, and apply the function to events in each bucket. For example, if you query a four hour period and set "buckets": 4, the response has four values, for each one hour period. Note: the minimum time range per bucket is 30 seconds. Use numericQuery for a finer level of detail.
+createSummaries
+
+Optional (defaults to true). When true, creates a timeseries of your query. The timeseries immediately updates from the ingestion pipeline, and a "backfill" process updates the data backwards to cover the time span of your query. If you issue the same query again with an earlier startTime, backfill again updates the timeseries to cover the time span.
+
+When backfill is complete, query execution is almost instantaneous. If you use the API to execute queries again and again, for example to feed a home-built dashboard, alerting system, or other automatic tool, set "createSummaries": true. Backfill usually starts in 2-3 minutes, and usually fills two months per hour, though many factors affect the rate.
+onlyUseSummaries
+
+Optional (defaults to false). When true, the query only executes on preexisting timeseries. When false, the query executes against the event database if there is no preexisting timeseries, or the timeseries does not cover the full time span of your query.
+
+When you set "onlyUseSummaries": true, your query is guaranteed to return quickly, and execute inexpensively, but with the possibility of missing results. For example, if you query the past 3 weeks with "createSummaries": true and "onlyUseSummaries": true, the query returns quickly, but initially with empty results, until backfill completes for the past 3 weeks. "onlyUseSummaries": true can be a cost-effective way to query a timeseries when you can wait for backfill to finish.
+
+When you set "onlyUseSummaries": false, the query may be slower and more expensive, but it will be complete.
+priority
+
+Optional (defaults to low). The execution priority for the query. Set to "low" when a delay of approximately a second is acceptable, and "high" if not. Low-priority queries have more generous rate limits.
+Responses
+
+An error is a status other than success in the response object. See SDL API Format section for more information.
+
+Standard response:
+
+{
+  "status": "success",
+  "results": [
+    {
+      "values": [ nnn, nnn, ... ],
+      "cpuUsage": 5,
+      "foundExistingSeries": true
+    },
+    {
+      "values": [ nnn, nnn, ... ],
+      "cpuUsage": 7,
+      "foundExistingSeries": true
+    }
+  ]
+}
+
+results: An array of objects, one for each query set in queries. Each object has an array of values, and the number of values equals the number of buckets for the query. A value is null if undefined, for example a mean applied to a bucket with no events.
+
+cpuUsage: CPU milliseconds spent on your query. We use this to rate limit requests.

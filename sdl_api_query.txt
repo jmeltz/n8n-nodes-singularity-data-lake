@@ -1,0 +1,150 @@
+SDL API - query
+
+Get events (log records) that match your query.
+
+URL
+
+https://yourConsole.net/api/query
+
+Replace https://yourConsole.net with the URL for the Singularity™ Data Lake Console. For example, https://xdr.us1.sentinelone.net.
+
+See Services and Ports for Management for the Singularity™ Data Lake URL for your Datacenter.
+
+Example
+
+Consult the URL above for your specific address. Use POST for a JSON request.
+
+curl -X POST https://yourConsole.net/api/query \
+    -H "Authorization: Bearer {token}"  \
+    -H "Content-Type: application/json" \
+    -d '{
+      "queryType": "log",
+      "filter":    "serverHost contains \"frontend\"",  
+      "startTime": "10/27 1 PM",
+      "endTime":   "10/27 4 PM"
+    }'
+
+Use GET to pass arguments in the URL. Remember to encode double quotes as %22, single quotes as %27, and spaces as %20:
+
+curl -X GET 'https://yourConsole.net/api/query?queryType=log&maxCount=1&token=XXX'
+
+You can also use the command-line tool. Set the --verbose and --output=json-pretty flags to output the raw JSON request and response objects. The command-line does not support multiple queries. The example omits the --token flag; see the installation instructions to store this as an environment variable.
+
+scalyr query --count=5 --verbose --output=json-pretty
+
+Format
+
+{
+  "token":             "xxx",   // A "Log Read Access" key. We recommend you send the key in the header.
+  "queryType":         "log",   // Set to "log".
+  "filter":            "...",   // Optional. A search expression.
+  "startTime":         "...",   // Optional. Omit "startTime" and "endTime" to search the past 24 hours.   
+  "endTime":           "...",   // Optional.  
+  "maxCount":          nnn,     // Optional. Defaults to 1000. Set from 1 to 5000.
+  "pageMode":          "...",   // Optional. Defaults to "head" when "startTime" is set, otherwise "tail".
+  "columns":           "...",   // Optional.
+  "continuationToken": "...",   // Do not set for the first query.
+  "priority":          "...",   // Optional. Defaults to "low".
+  "teamEmails":        ["...", "..."]   // Optional.
+}
+
+token
+
+A Log Read Access SDL API key. We recommend you send the key in the header, in the format Authorization: Bearer {token}.
+
+SentinelOne Console user API tokens also support the Singularity™ Data Lake SDL API. See SDL API Keys for more.
+queryType
+
+Set to log.
+filter
+
+Optional (defaults to ""). A search expression to get matching events, in the same syntax as the UI. For example, "status >= 400 status < 500" will match events with a "client error" HTTP status code. Note: for JSON requests, single quotes are invalid, and you must \" escape double quotes in strings.
+
+Ignore this property to match all events, for example if you want all events from a time period.
+startTime and endTime
+
+Optional (defaults to 24 hours when both properties are not set). The time range of your query. Uses the same time syntax as the UI. You can also set a timestamp in seconds, milliseconds, or nanoseconds since 1/1/1970.
+
+Defaults to the past 24 hours when both properties are not set. If startTime is set but endTime is not, the query is from startTime to 24 hours later, or the present, whichever is first. If endTime is set but not startTime, the query starts 24 hours before endTime.
+
+startTime is inclusive: endTime is exclusive.
+maxCount
+
+Optional (defaults to 100). The maximum number of events to get. Set from 1 to 5000.
+pageMode
+
+Optional (defaults to head when startTime is set, otherwise tail). When the number of matching events exceeds maxCount, set to head to get the oldest maxCount events, and tail to get the newest maxCount events.
+columns
+
+Optional (defaults to "", all fields). A comma-delimited list of fields to get for each log message. For example, "severity, serverHost".
+continuationToken
+
+Used to "page through" query results when maxCount is exceeded. Do not set for your first query.
+
+When maxCount is exceeded, a continuationToken is included in the response. You can repeat the query with the same parameters and set the continuationToken to get another maxCount events, and another continuationToken if matches again exceed maxCount. Set each subsequent query to the continuationToken for the last query.
+
+Make sure you set startTime and endTime in absolute values, not relative values such as 4h.
+priority
+
+Optional (defaults to low). The execution priority for the query. Set to "low" when a delay of approximately a second is acceptable, and "high" if not. Low-priority queries have more generous rate limits.
+teamEmails
+
+Optional (defaults to []). An array of account emails to query, enabling Cross Team Search.
+tenant
+
+Optional (defaults to false). When set to true, this parameter queries all accounts accessible to the user. For a global scope, that includes all accounts on the Console. For an account-level scope, only that account is included. The tenant and accountIds parameters are only supported for console API tokens.
+accountIds
+
+Optional (defaults to []). An array of Console account IDs to query, enabling Cross Team Search. Provide this parameter only if tenant is set to false and teamEmails is not present. The tenant and accountIds parameters are only supported for console API tokens.
+Responses
+
+An error is a status other than success in the response object. See SDL API Format section for more information.
+
+Standard response:
+
+{
+  "status": "success",
+  "matches": [
+    {
+      "timestamp": "1393009097459537089",
+      "message": "hello, world",
+      "severity": 3,
+      "session": "sess_d5952fdd-eed2-45f1-8106-b2f2af55dabd",
+      "thread": "28",
+      "attributes": {
+        "tag": "foo"
+      }
+    }
+  ],
+  "sessions": {
+    "sess_d5952fdd-eed2-45f1-8106-b2f2af55dabd": {
+      "serverHost": "some.host.name",
+      "serverIP": "1.2.3.4",
+      "session": "sess_d5952fdd-eed2-45f1-8106-b2f2af55dabd"
+    }
+  },
+  "cpuUsage": 12,
+  "continuationToken": "L6_ckjI4BgATVPZkxGaUwQ--"
+}
+
+matches: An array of objects matching the query, up to maxCount. Events are always in ascending order by timestamp, even if you use pageMode. Each object has the fields:
+
+    timestamp: The time of the event, in nanoseconds since 1/1/1970.
+
+    message: The raw, unparsed event text. If the event does not have a message field, for example an addEvents request with no message, the property is empty ("").
+
+    severity: The severity level, ranging from 0 to 6. By default, events have a value of 3 ("info"):
+
+    0: "finest" 1: "finer", "trace", "TRC" 2: "fine", "debug", "d", "dbg", "DBG" 3: "info", "inf", "notice", "i", "INF", "NOT" 4: "warn", "warning", "w", "wrn", "WRN" 5: "error", "err", "e", "ERR" 6: "fatal", "emerg", "emergency", "crit", "critical", "panic", ""alert", "f", "CRT"
+
+    session: The session ID for the event. See addEvents for more information.
+
+    thread: The thread ID for the event. See addEvents for more information.
+
+    attributes: More fields created by the parser, or in the addEvents request. If you set the columns property in the request, only the fields you set are included. This applies to built-in fields such as timestamp and message, and fields in the fields object.
+
+sessions: An object with all sessions in the matches array. Each session has the hostname and IP address of the server from which you uploaded the events, and fields set in the sessionInfo property of the addEvents request. (For the Collector, these are fields set with the server_attributes property of the configuration file.)
+
+cpuUsage: CPU milliseconds spent on your query. We use this to rate limit requests.
+
+continuationToken: A token you can set in a subsequent query to get another maxCount events. Make sure you repeat the same filter, startTime, endTime, and pageMode. Also set startTime and endTime to absolute values, not relative values such as 4h. It is possible this token is in the response even if there are no more matching events.
