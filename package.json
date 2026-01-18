@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-singularity-data-lake",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "n8n node for SentinelOne Singularity Data Lake API",
   "keywords": [
     "n8n-community-node-package",

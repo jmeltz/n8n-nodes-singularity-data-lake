@@ -872,7 +872,24 @@ export class SentinelOneDataLake implements INodeType {
 					}
 				}
 
-				if (Array.isArray(responseData)) {
+				// Handle responses with matches array (search, facet, timeseries, powerQuery)
+				// Return each match as a separate item with metadata including continuationToken
+				if (responseData && typeof responseData === 'object' && 'matches' in responseData) {
+					const { matches, continuationToken, status, sessions, cpuUsage, ...rest } = responseData as IDataObject;
+					const metadata = { continuationToken, status, sessions, cpuUsage, ...rest };
+
+					if (Array.isArray(matches) && matches.length > 0) {
+						returnData.push(...(matches as IDataObject[]).map((match) => ({
+							json: {
+								...match,
+								_meta: metadata,
+							},
+						})));
+					} else {
+						// No matches, return metadata only
+						returnData.push({ json: { _meta: metadata } });
+					}
+				} else if (Array.isArray(responseData)) {
 					returnData.push(...responseData.map(item => ({ json: item })));
 				} else if (responseData) {
 					returnData.push({ json: responseData });
