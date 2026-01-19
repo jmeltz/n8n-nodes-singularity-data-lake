@@ -933,7 +933,15 @@ export class SentinelOneDataLake implements INodeType {
  * Converts relative time strings (e.g., "24h", "7d", "30m") to absolute millisecond timestamps.
  * If the input is already an absolute timestamp or date string, returns it as-is.
  */
-function convertToAbsoluteTime(timeStr: string, referenceTime: number): string {
+function convertToAbsoluteTime(timeValue: unknown, referenceTime: number): string {
+	// Handle non-string inputs
+	if (timeValue === null || timeValue === undefined) {
+		return String(referenceTime);
+	}
+
+	// Convert to string if it's a number
+	const timeStr = String(timeValue);
+
 	// Check if it's a relative time format (e.g., "24h", "7d", "30m", "1w")
 	const relativeMatch = timeStr.match(/^(\d+)\s*(s|m|h|d|w|M|y)$/i);
 	if (relativeMatch) {
