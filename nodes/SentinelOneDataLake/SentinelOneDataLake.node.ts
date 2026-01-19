@@ -182,15 +182,37 @@ export class SentinelOneDataLake implements INodeType {
 				},
 				options: [
 					{
-						displayName: 'Max Count',
+						displayName: 'Return All Results',
+						name: 'returnAll',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to automatically fetch all pages of results using continuation tokens (enabled by default)',
+					},
+					{
+						displayName: 'Max Total Results',
+						name: 'maxTotalResults',
+						type: 'number',
+						default: 0,
+						typeOptions: {
+							minValue: 0,
+						},
+						description: 'Maximum total number of results to return. Set to 0 for unlimited (default). Only applies when "Return All Results" is enabled.',
+						displayOptions: {
+							show: {
+								returnAll: [true],
+							},
+						},
+					},
+					{
+						displayName: 'Max Count Per Page',
 						name: 'maxCount',
 						type: 'number',
-						default: 100,
+						default: 1000,
 						typeOptions: {
 							minValue: 1,
 							maxValue: 5000,
 						},
-						description: 'Maximum number of events to return (1-5000)',
+						description: 'Maximum number of events to return per API request (1-5000). Higher values mean fewer API calls.',
 					},
 					{
 						displayName: 'Page Mode',
@@ -960,6 +982,8 @@ async function executeSearch(
 	const startTime = this.getNodeParameter('startTime', itemIndex, '24h') as string;
 	const endTime = this.getNodeParameter('endTime', itemIndex, '') as string;
 	const additionalOptions = this.getNodeParameter('additionalOptions', itemIndex, {}) as {
+		returnAll?: boolean;
+		maxTotalResults?: number;
 		maxCount?: number;
 		pageMode?: string;
 		columns?: string;
@@ -969,6 +993,9 @@ async function executeSearch(
 		tenant?: boolean;
 		accountIds?: string;
 	};
+
+	const returnAll = additionalOptions.returnAll ?? true;
+	const maxTotalResults = additionalOptions.maxTotalResults ?? 0; // 0 means unlimited
 
 	const body: Record<string, unknown> = {
 		queryType: 'log',
@@ -1012,9 +1039,68 @@ async function executeSearch(
 		body.accountIds = additionalOptions.accountIds.split(',').map(id => id.trim());
 	}
 
-	const response = await makeApiRequest.call(this, 'POST', '/api/query', consoleUrl, s1Scope, body);
+	// If not returning all results, just make a single request
+	if (!returnAll) {
+		const response = await makeApiRequest.call(this, 'POST', '/api/query', consoleUrl, s1Scope, body);
+		return response;
+	}
 
-	return response;
+	// Auto-pagination: fetch all pages using continuation tokens
+	const allMatches: IDataObject[] = [];
+	let continuationToken: string | undefined;
+	let totalFetched = 0;
+	let lastResponse: IDataObject = {};
+	const isUnlimited = maxTotalResults === 0;
+
+	do {
+		if (continuationToken) {
+			body.continuationToken = continuationToken;
+		}
+
+		const response = await makeApiRequest.call(this, 'POST', '/api/query', consoleUrl, s1Scope, body) as IDataObject;
+		lastResponse = response;
+
+		if (response.matches && Array.isArray(response.matches)) {
+			const matches = response.matches as IDataObject[];
+
+			if (isUnlimited) {
+				// Unlimited mode: add all matches
+				allMatches.push(...matches);
+				totalFetched += matches.length;
+			} else {
+				// Limited mode: respect maxTotalResults
+				const remainingCapacity = maxTotalResults - totalFetched;
+
+				if (matches.length <= remainingCapacity) {
+					allMatches.push(...matches);
+					totalFetched += matches.length;
+				} else {
+					// Only take what we need to reach maxTotalResults
+					allMatches.push(...matches.slice(0, remainingCapacity));
+					totalFetched += remainingCapacity;
+					break;
+				}
+			}
+		}
+
+		continuationToken = response.continuationToken as string | undefined;
+
+	} while (continuationToken && (isUnlimited || totalFetched < maxTotalResults));
+
+	// Return combined results with metadata from the last response
+	const reachedLimit = !isUnlimited && totalFetched >= maxTotalResults;
+	return {
+		matches: allMatches,
+		status: lastResponse.status,
+		sessions: lastResponse.sessions,
+		cpuUsage: lastResponse.cpuUsage,
+		// Only include continuationToken if we stopped early due to maxTotalResults
+		continuationToken: reachedLimit ? continuationToken : undefined,
+		_pagination: {
+			totalReturned: allMatches.length,
+			reachedLimit,
+		},
+	};
 }
 
 async function executeFacetQuery(
