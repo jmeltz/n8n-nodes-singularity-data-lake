@@ -929,6 +929,54 @@ export class SentinelOneDataLake implements INodeType {
 	}
 }
 
+/**
+ * Converts relative time strings (e.g., "24h", "7d", "30m") to absolute millisecond timestamps.
+ * If the input is already an absolute timestamp or date string, returns it as-is.
+ */
+function convertToAbsoluteTime(timeStr: string, referenceTime: number): string {
+	// Check if it's a relative time format (e.g., "24h", "7d", "30m", "1w")
+	const relativeMatch = timeStr.match(/^(\d+)\s*(s|m|h|d|w|M|y)$/i);
+	if (relativeMatch) {
+		const value = parseInt(relativeMatch[1], 10);
+		const unit = relativeMatch[2].toLowerCase();
+
+		let milliseconds: number;
+		switch (unit) {
+			case 's':
+				milliseconds = value * 1000;
+				break;
+			case 'm':
+				milliseconds = value * 60 * 1000;
+				break;
+			case 'h':
+				milliseconds = value * 60 * 60 * 1000;
+				break;
+			case 'd':
+				milliseconds = value * 24 * 60 * 60 * 1000;
+				break;
+			case 'w':
+				milliseconds = value * 7 * 24 * 60 * 60 * 1000;
+				break;
+			default:
+				// For months/years, approximate
+				milliseconds = unit === 'y'
+					? value * 365 * 24 * 60 * 60 * 1000
+					: value * 30 * 24 * 60 * 60 * 1000;
+		}
+
+		// Return absolute timestamp in milliseconds
+		return String(referenceTime - milliseconds);
+	}
+
+	// If it's already a number (timestamp), return as-is
+	if (/^\d+$/.test(timeStr)) {
+		return timeStr;
+	}
+
+	// Otherwise, assume it's a date string the API can parse, return as-is
+	return timeStr;
+}
+
 async function makeApiRequest(
 	this: IExecuteFunctions,
 	method: IHttpRequestMethods,
@@ -1043,6 +1091,17 @@ async function executeSearch(
 	if (!returnAll) {
 		const response = await makeApiRequest.call(this, 'POST', '/api/query', consoleUrl, s1Scope, body);
 		return response;
+	}
+
+	// For pagination, convert relative times to absolute timestamps
+	// The API requires absolute times when using continuation tokens
+	const now = Date.now();
+	body.startTime = convertToAbsoluteTime(startTime, now);
+	if (endTime) {
+		body.endTime = convertToAbsoluteTime(endTime, now);
+	} else {
+		// Set explicit end time to current time for consistent pagination
+		body.endTime = String(now);
 	}
 
 	// Auto-pagination: fetch all pages using continuation tokens
