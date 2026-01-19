@@ -1063,9 +1063,8 @@ async function executeSearch(
 		body.endTime = endTime;
 	}
 
-	if (additionalOptions.maxCount) {
-		body.maxCount = additionalOptions.maxCount;
-	}
+	// Always set maxCount - API defaults to 100 which is too low for efficient pagination
+	body.maxCount = additionalOptions.maxCount || 1000;
 
 	if (additionalOptions.pageMode) {
 		body.pageMode = additionalOptions.pageMode;
