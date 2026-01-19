@@ -1118,6 +1118,7 @@ async function executeSearch(
 	let totalFetched = 0;
 	let lastResponse: IDataObject = {};
 	const isUnlimited = maxTotalResults === 0;
+	const maxCountPerPage = (body.maxCount as number) || 1000;
 
 	do {
 		if (continuationToken) {
@@ -1153,6 +1154,11 @@ async function executeSearch(
 				totalFetched += remainingCapacity;
 				break;
 			}
+		}
+
+		// If we got fewer matches than requested, we've reached the last page
+		if (matches.length < maxCountPerPage) {
+			break;
 		}
 
 		continuationToken = response.continuationToken as string | undefined;
