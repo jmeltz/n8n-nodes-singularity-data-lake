@@ -1127,26 +1127,31 @@ async function executeSearch(
 		const response = await makeApiRequest.call(this, 'POST', '/api/query', consoleUrl, s1Scope, body) as IDataObject;
 		lastResponse = response;
 
-		if (response.matches && Array.isArray(response.matches)) {
-			const matches = response.matches as IDataObject[];
+		const matches = (response.matches && Array.isArray(response.matches))
+			? response.matches as IDataObject[]
+			: [];
 
-			if (isUnlimited) {
-				// Unlimited mode: add all matches
+		// Stop if no matches returned (API can return continuationToken even with no more results)
+		if (matches.length === 0) {
+			break;
+		}
+
+		if (isUnlimited) {
+			// Unlimited mode: add all matches
+			allMatches.push(...matches);
+			totalFetched += matches.length;
+		} else {
+			// Limited mode: respect maxTotalResults
+			const remainingCapacity = maxTotalResults - totalFetched;
+
+			if (matches.length <= remainingCapacity) {
 				allMatches.push(...matches);
 				totalFetched += matches.length;
 			} else {
-				// Limited mode: respect maxTotalResults
-				const remainingCapacity = maxTotalResults - totalFetched;
-
-				if (matches.length <= remainingCapacity) {
-					allMatches.push(...matches);
-					totalFetched += matches.length;
-				} else {
-					// Only take what we need to reach maxTotalResults
-					allMatches.push(...matches.slice(0, remainingCapacity));
-					totalFetched += remainingCapacity;
-					break;
-				}
+				// Only take what we need to reach maxTotalResults
+				allMatches.push(...matches.slice(0, remainingCapacity));
+				totalFetched += remainingCapacity;
+				break;
 			}
 		}
 
